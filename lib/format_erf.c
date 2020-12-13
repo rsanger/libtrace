@@ -672,7 +672,21 @@ static bool find_compatible_linktype(libtrace_out_t *libtrace,
 
 int libtrace_to_erf_hdr(libtrace_out_t *libtrace, libtrace_packet_t *packet,
     dag_record_t *erf, int *framinglen, int *caplen, int *padding) {
+    /* Populate metadata from the packet before demoting and possibly losing it */
+    libtrace_direction_t dir = trace_get_direction(packet);
+    memset(&erf->flags, 0, sizeof(erf->flags));
+    erf->ts = bswap_host_to_le64(trace_get_erf_timestamp(packet));
+    if (dir != TRACE_DIR_UNKNOWN)
+        erf->flags.iface = dir;
+    else
+        /* Probably uneeded, the original memset would (unintentionally?) set this to 1 */
+        erf->flags.iface = TRACE_DIR_INCOMING;
 
+    /* Demote the packet to a linktype we can send, e.g. find Ethernet */
+    if (!find_compatible_linktype(libtrace,packet))
+        return -1;
+
+    /* Fill in the packet size, it may have changed after demotion */
     int wlen = trace_get_wire_length(packet);
     *framinglen = dag_record_size + erf_get_padding(packet);
     *caplen = trace_get_capture_length(packet);
@@ -696,19 +710,10 @@ int libtrace_to_erf_hdr(libtrace_out_t *libtrace, libtrace_packet_t *packet,
         return -1;
     }
 
-    erf->ts = bswap_host_to_le64(trace_get_erf_timestamp(packet));
-    memset(&erf->flags, 0, sizeof(erf->flags));
-    if (trace_get_direction(packet) != TRACE_DIR_UNKNOWN)
-        erf->flags.iface = trace_get_direction(packet);
-    if (!find_compatible_linktype(libtrace,packet))
-        return -1;
     erf->type = libtrace_to_erf_type(trace_get_link_type(packet));
 
-    // calculate correct padding for the ERF record
-    erf_calculate_padding(packet, framinglen, caplen, padding);
-
-    erf->rlen = htons(*framinglen + *caplen + *padding);
-    // loss counter. Cant't do this
+    erf->rlen = htons(*framinglen + *caplen);
+    // loss counter. Can't do this
     erf->lctr = 0;
     erf->wlen = htons(wlen);
 
@@ -737,16 +742,16 @@ int erf_calculate_padding(libtrace_packet_t *packet, int *framinglen,
         *framinglen = dag_record_size + erf_get_padding(packet);
 
     // full packet, round up
-    if ((wlen == *caplen) ||
+    /*if ((wlen == *caplen) ||
         // full packet except FCS, round up. Do we want to do this? or should
         // we round down??
-        (trace_get_link_type(packet) == TRACE_TYPE_ETH && wlen-4 == *caplen)) {
+        (trace_get_link_type(packet) == TRACE_TYPE_ETH && wlen-4 == *caplen)) {*/
 
-        *padding = erf_increased_padding(*framinglen, *caplen);
+        //*padding = erf_increased_padding(*framinglen, *caplen);
     // snapped packet
-    } else {
+    /*} else {
         *caplen -= erf_reduced_padding(*framinglen, *caplen);
-    }
+    }*/
 
     /* If we've had an rxerror, we have no payload to write.
      *
@@ -825,7 +830,6 @@ static int erf_write_packet(libtrace_out_t *libtrace,
 	int caplen;
 	int padding;
 	dag_record_t *dag_hdr = (dag_record_t *)packet->header;
-	void *payload = packet->payload;
 
 	if (!OUTPUT->file) {
 		trace_set_err_out(libtrace, TRACE_ERR_BAD_IO, "Attempted to write ERF packets to a "
@@ -838,13 +842,13 @@ static int erf_write_packet(libtrace_out_t *libtrace,
 	}
 
 	if (packet->type == TRACE_RT_DATA_ERF) {
-		// calculate padding to make sure eveything is 8 byte aligned
+		//WRONG: calculate padding to make sure everything is 8 byte aligned
 		erf_calculate_padding(packet, &framinglen, &caplen, &padding);
-		dag_hdr->rlen = htons(framinglen + caplen + padding);
+		dag_hdr->rlen = htons(framinglen + caplen);
 		return erf_dump_packet(libtrace,
 				       dag_hdr,
 				       framinglen,
-				       payload,
+				       packet->payload,
 				       caplen,
 				       padding);
 	} else {
@@ -855,7 +859,7 @@ static int erf_write_packet(libtrace_out_t *libtrace,
 		return erf_dump_packet(libtrace,
 				       &erfhdr,
 				       framinglen,
-				       payload,
+				       packet->payload,
 				       caplen,
 				       padding);
 	}
