@@ -124,9 +124,16 @@ jobs:
     - uses: actions/checkout@v2
       with:
         submodules: recursive
+    - name: Checkout uthash
+      uses: actions/checkout@v2
+      with:
+        path: uthash
+        repository: troydhanson/uthash
     - name: Install Dependencies
       run: |
         brew install flex bison libpcap libtool autoconf automake m4 gcc netcat
+        cd uthash/src/
+        cp *.h /usr/local/include/
     - name: Build/Install Wandio
       run: |
         cd wandio
