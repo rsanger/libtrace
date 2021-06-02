@@ -129,6 +129,12 @@ jobs:
       with:
         path: uthash
         repository: troydhanson/uthash
+    - name: Checkout wandderfixed
+      uses: actions/checkout@v2
+      with:
+        path: libwandder-dev
+        repository: rsanger/libwandder
+        ref: develop
     - name: Install Dependencies
       run: |
         brew install flex bison libpcap libtool autoconf automake m4 gcc netcat
@@ -143,7 +149,7 @@ jobs:
         sudo make install
     - name: Build/Install Libwandder
       run: |
-        cd libwandder
+        cd libwandder-dev
         glibtoolize --force --copy
         ./bootstrap.sh
         ./configure
