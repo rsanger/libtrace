@@ -137,8 +137,8 @@ jobs:
     - name: Build/Install Libwandder
       run: |
         cd libwandder
-        ./bootstrap.sh
         glibtoolize --force --copy
+        ./bootstrap.sh
         ./configure
         make -j 4
         sudo make install
