@@ -138,6 +138,7 @@ jobs:
       run: |
         cd libwandder
         ./bootstrap.sh
+        glibtoolize --force --copy
         ./configure
         make -j 4
         sudo make install
