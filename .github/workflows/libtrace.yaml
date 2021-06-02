@@ -126,7 +126,7 @@ jobs:
         submodules: recursive
     - name: Install Dependencies
       run: |
-        brew install flex bison libpcap libtool autoconf automake m4 gcc
+        brew install flex bison libpcap libtool autoconf automake m4 gcc netcat
     - name: Build/Install Wandio
       run: |
         cd wandio
@@ -134,6 +134,14 @@ jobs:
         ./configure
         make -j 4
         sudo make install
+    - name: Build/Install Libwandder
+      run: |
+        cd libwandder
+        ./bootstrap.sh
+        ./configure
+        make -j 4
+        sudo make install
+        sudo ldconfig
     - name: Build/Install Libtrace
       run: |
         ./bootstrap.sh
