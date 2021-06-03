@@ -150,7 +150,6 @@ jobs:
     - name: Build/Install Libwandder
       run: |
         cd libwandder-dev
-        glibtoolize --force --copy
         ./bootstrap.sh
         ./configure
         make -j 4
