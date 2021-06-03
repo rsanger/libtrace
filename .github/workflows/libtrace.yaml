@@ -137,7 +137,7 @@ jobs:
         ref: develop
     - name: Install Dependencies
       run: |
-        brew install flex bison libpcap libtool autoconf automake m4 gcc netcat
+        brew install flex bison libpcap libtool autoconf automake m4 gcc socat
         cd uthash/src/
         cp *.h /usr/local/include/
     - name: Build/Install Wandio
